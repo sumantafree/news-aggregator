@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "rewrites": [
+    { "source": "/sitemap.xml", "destination": "https://YOUR-BACKEND.onrender.com/sitemap.xml" },
+    { "source": "/robots.txt",  "destination": "https://YOUR-BACKEND.onrender.com/robots.txt" }
+  ]
+}

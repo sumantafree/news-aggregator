@@ -1,0 +1,54 @@
+# Render Blueprint — deploys backend + cron job.
+# Commit this file to your repo, then on Render:
+#   New → Blueprint → select this repo.
+# You will still set the secret env vars (DATABASE_URL, SECRET_KEY, etc.) in the UI.
+
+services:
+  # -------- FastAPI backend --------
+  - type: web
+    name: news-aggregator-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: DATABASE_URL          # Supabase "Connection Pooling" URI (transaction mode)
+        sync: false                #   format: postgresql+psycopg2://postgres:...@...pooler.supabase.com:6543/postgres
+      - key: REDIS_URL
+        value: ""                  # empty → falls back to in-memory cache
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ADMIN_USERNAME
+        value: admin
+      - key: ADMIN_PASSWORD        # set to something strong in the UI
+        sync: false
+      - key: ALLOWED_ORIGINS       # e.g. https://news.yourdomain.com
+        sync: false
+      - key: SITE_URL              # e.g. https://news.yourdomain.com
+        sync: false
+      - key: CRON_SECRET
+        generateValue: true        # shared with cron job below (copy value)
+      - key: RSS_REFRESH_INTERVAL
+        value: "600"
+      - key: CACHE_TTL_SECONDS
+        value: "600"
+
+  # -------- Cron job: refresh feeds every 10 minutes --------
+  - type: cron
+    name: news-aggregator-refresh
+    runtime: docker                # tiny curl container — nothing to build
+    dockerfilePath: ./cron/Dockerfile
+    rootDir: .
+    schedule: "*/10 * * * *"
+    envVars:
+      - key: API_URL               # e.g. https://news-aggregator-api.onrender.com
+        sync: false
+      - key: CRON_SECRET           # must match backend CRON_SECRET
+        sync: false
