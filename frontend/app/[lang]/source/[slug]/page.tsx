@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { fetchNews, fetchSources } from "@/lib/api";
-import { isValidLang } from "@/lib/i18n";
+import { isValidLang, type Language } from "@/lib/i18n";
 import { NewsGrid } from "@/components/NewsGrid";
 
 export const revalidate = 60;
@@ -28,18 +28,19 @@ export default async function SourcePage({
   params: { lang: string; slug: string };
 }) {
   if (!isValidLang(params.lang)) notFound();
+  const lang: Language = params.lang;
   const [articles, sources] = await Promise.all([
-    fetchNews({ lang: params.lang, source: params.slug, limit: 60 }).catch(() => []),
-    fetchSources(params.lang).catch(() => []),
+    fetchNews({ lang, source: params.slug, limit: 60 }).catch(() => []),
+    fetchSources(lang).catch(() => []),
   ]);
   const source = sources.find((s) => s.slug === params.slug);
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold text-slate-900">
+      <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
         {source?.name || params.slug}
       </h1>
-      <NewsGrid articles={articles} lang={params.lang} />
+      <NewsGrid articles={articles} lang={lang} />
     </div>
   );
 }

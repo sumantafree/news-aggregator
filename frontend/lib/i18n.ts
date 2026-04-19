@@ -1,4 +1,5 @@
-export type Language = "hi" | "en";
+import type { Language } from "./types";
+export type { Language };
 
 export const translations = {
   en: {

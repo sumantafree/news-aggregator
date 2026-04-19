@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
-import { isValidLang, t } from "@/lib/i18n";
+import { isValidLang, t, type Language } from "@/lib/i18n";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
@@ -12,8 +12,7 @@ export async function generateMetadata({
   params: { lang: string };
 }): Promise<Metadata> {
   if (!isValidLang(params.lang)) return {};
-  const lang = params.lang;
-  const other = lang === "hi" ? "en" : "hi";
+  const lang: Language = params.lang;
   return {
     title: t(lang, "site_title"),
     description: t(lang, "tagline"),
@@ -29,7 +28,6 @@ export async function generateMetadata({
       title: t(lang, "site_title"),
       description: t(lang, "tagline"),
       locale: lang === "hi" ? "hi_IN" : "en_IN",
-      alternateLocale: other === "hi" ? "hi_IN" : "en_IN",
     },
   };
 }
@@ -46,11 +44,12 @@ export default function LangLayout({
   params: { lang: string };
 }) {
   if (!isValidLang(params.lang)) notFound();
+  const lang: Language = params.lang;
   return (
-    <div lang={params.lang} className="min-h-screen bg-slate-50 text-slate-900">
-      <Header lang={params.lang} />
+    <div lang={lang} className="min-h-screen bg-slate-50 text-slate-900">
+      <Header lang={lang} />
       <main className="mx-auto max-w-6xl px-3 py-4 sm:px-4 sm:py-6">{children}</main>
-      <Footer lang={params.lang} />
+      <Footer lang={lang} />
     </div>
   );
 }

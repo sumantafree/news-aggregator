@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { fetchNews } from "@/lib/api";
-import { isValidLang } from "@/lib/i18n";
+import { isValidLang, type Language } from "@/lib/i18n";
 import { NewsGrid } from "@/components/NewsGrid";
 import { AdSlot } from "@/components/AdSlot";
 
@@ -38,18 +38,21 @@ export default async function CategoryPage({
   params: { lang: string; slug: string };
 }) {
   if (!isValidLang(params.lang)) notFound();
+  const lang: Language = params.lang;
   const category = decodeURIComponent(params.slug);
   const articles = await fetchNews({
-    lang: params.lang,
+    lang,
     category,
     limit: 60,
   }).catch(() => []);
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold capitalize text-slate-900">{category}</h1>
+      <h1 className="text-2xl font-bold capitalize text-slate-900 sm:text-3xl">
+        {category}
+      </h1>
       <AdSlot slot="category-top" className="h-24" />
-      <NewsGrid articles={articles} lang={params.lang} />
+      <NewsGrid articles={articles} lang={lang} />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { fetchCategories, fetchNews, fetchTrending } from "@/lib/api";
-import { isValidLang, t } from "@/lib/i18n";
+import { isValidLang, t, type Language } from "@/lib/i18n";
 import { NewsGrid } from "@/components/NewsGrid";
 import { CategoryFilter } from "@/components/CategoryFilter";
 import { TrendingSection } from "@/components/TrendingSection";
@@ -13,7 +13,7 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
 export default async function LangHome({ params }: { params: { lang: string } }) {
   if (!isValidLang(params.lang)) notFound();
-  const lang = params.lang;
+  const lang: Language = params.lang;
 
   const [articles, trending, categories] = await Promise.all([
     fetchNews({ lang, limit: 48 }).catch(() => []),
