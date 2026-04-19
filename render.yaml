@@ -1,10 +1,7 @@
-# Render Blueprint — deploys backend + cron job.
-# Commit this file to your repo, then on Render:
-#   New → Blueprint → select this repo.
-# You will still set the secret env vars (DATABASE_URL, SECRET_KEY, etc.) in the UI.
+# Render config — Web Service only (free plan, no card required)
+# Cron job is handled by cron-job.org (free external service) — see DEPLOYMENT.md
 
 services:
-  # -------- FastAPI backend --------
   - type: web
     name: news-aggregator-api
     runtime: python
@@ -19,36 +16,23 @@ services:
         value: production
       - key: DEBUG
         value: "false"
-      - key: DATABASE_URL          # Supabase "Connection Pooling" URI (transaction mode)
-        sync: false                #   format: postgresql+psycopg2://postgres:...@...pooler.supabase.com:6543/postgres
+      - key: DATABASE_URL
+        sync: false
       - key: REDIS_URL
-        value: ""                  # empty → falls back to in-memory cache
+        value: ""
       - key: SECRET_KEY
         generateValue: true
       - key: ADMIN_USERNAME
         value: admin
-      - key: ADMIN_PASSWORD        # set to something strong in the UI
+      - key: ADMIN_PASSWORD
         sync: false
-      - key: ALLOWED_ORIGINS       # e.g. https://news.yourdomain.com
+      - key: ALLOWED_ORIGINS
         sync: false
-      - key: SITE_URL              # e.g. https://news.yourdomain.com
+      - key: SITE_URL
         sync: false
       - key: CRON_SECRET
-        generateValue: true        # shared with cron job below (copy value)
+        generateValue: true
       - key: RSS_REFRESH_INTERVAL
         value: "600"
       - key: CACHE_TTL_SECONDS
         value: "600"
-
-  # -------- Cron job: refresh feeds every 10 minutes --------
-  - type: cron
-    name: news-aggregator-refresh
-    runtime: docker                # tiny curl container — nothing to build
-    dockerfilePath: ./cron/Dockerfile
-    rootDir: .
-    schedule: "*/10 * * * *"
-    envVars:
-      - key: API_URL               # e.g. https://news-aggregator-api.onrender.com
-        sync: false
-      - key: CRON_SECRET           # must match backend CRON_SECRET
-        sync: false
