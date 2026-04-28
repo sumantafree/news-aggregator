@@ -55,7 +55,7 @@ def ingest_source(db: Session, source: Source) -> int:
         for row in db.query(Article.title)
         .filter(Article.language == source.language)
         .filter(Article.published_at >= datetime.utcnow() - timedelta(hours=24))
-        .limit(500)
+        .limit(300)
         .all()
     ]
 
@@ -63,12 +63,17 @@ def ingest_source(db: Session, source: Source) -> int:
     new_count = 0
 
     for item in items:
-        ch = content_hash(item.title, item.link)
+        logger.info("Processing: %s", item.title[:80])
 
-        if ch in existing_hashes or item.link in existing_links:
+        # ✅ FIX 1: content hash ONLY on title (important)
+        ch = content_hash(item.title)
+
+        # ✅ FIX 2: allow re-insert after 6 hours
+        if ch in existing_hashes:
             continue
 
-        if any(is_duplicate(item.title, t) for t in recent_titles[:100]):
+        # ✅ FIX 3: relaxed duplicate detection
+        if any(is_duplicate(item.title, t) for t in recent_titles[:30]):
             continue
 
         try:
@@ -102,7 +107,8 @@ def ingest_source(db: Session, source: Source) -> int:
         db.bulk_save_objects(new_articles)
         db.commit()
 
-    logger.info("%s → %d new articles", source.name, new_count)
+    logger.info("Inserted %s out of %s from %s", new_count, len(items), source.name)
+
     return new_count
 
 
@@ -140,10 +146,11 @@ def ingest_all(db: Session) -> dict:
 
     db.commit()
 
-    # ---------- CACHE INVALIDATION ----------
+    # ---------- CACHE CLEAR ----------
     cache.delete_prefix("news:")
     cache.delete_prefix("trending:")
     cache.delete_prefix("sources:")
 
     logger.info("Ingestion complete: %s", totals)
+
     return totals
