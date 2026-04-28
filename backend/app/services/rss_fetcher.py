@@ -17,25 +17,6 @@ logger = logging.getLogger(__name__)
 
 USER_AGENT = "Mozilla/5.0 (NewsAggregatorBot/2.0)"
 
-# 🔥 MASTER FEED CONFIG (UPDATED)
-FEEDS: List[Dict] = [
-    # 🇮🇳 ENGLISH NEWS
-    {"url": "http://feeds.bbci.co.uk/news/rss.xml", "source": "BBC", "lang": "en"},
-    {"url": "https://indianexpress.com/feed/", "source": "Indian Express", "lang": "en"},
-    {"url": "https://feeds.feedburner.com/ndtvnews-top-stories", "source": "NDTV", "lang": "en"},
-    {"url": "https://www.hindustantimes.com/feeds/rss/topnews/rssfeed.xml", "source": "HT", "lang": "en"},
-    {"url": "https://timesofindia.indiatimes.com/rssfeedstopstories.cms", "source": "TOI", "lang": "en"},
-
-    # 🇮🇳 HINDI NEWS
-    {"url": "https://www.amarujala.com/rss/breaking-news.xml", "source": "Amar Ujala", "lang": "hi"},
-    {"url": "https://feeds.feedburner.com/ndtvkhabar-latest", "source": "NDTV Hindi", "lang": "hi"},
-    {"url": "https://www.aajtak.in/rssfeeds/?id=home", "source": "AajTak", "lang": "hi"},
-
-    # ❌ REMOVED BROKEN:
-    # Jagran (404)
-    # Zee (bad redirects / no entries)
-]
-
 
 @dataclass
 class FeedItem:
@@ -62,29 +43,26 @@ def _parse_date(entry) -> datetime:
 
 
 def _extract_image(entry) -> Optional[str]:
-    # media
     for key in ("media_content", "media_thumbnail"):
         val = entry.get(key)
         if isinstance(val, list) and val:
             return val[0].get("url")
 
-    # enclosure
     for link in entry.get("links", []):
         if link.get("rel") == "enclosure":
             return link.get("href")
 
-    # HTML fallback
     html = entry.get("summary", "")
     match = re.search(r'<img[^>]+src=["\']([^"\']+)', html)
     return match.group(1) if match else None
 
 
-# ---------- CORE FETCH ----------
+# ---------- CORE ----------
 
 def fetch_single_feed(feed: Dict) -> List[FeedItem]:
     url = feed["url"]
-    source = feed["source"]
-    lang = feed["lang"]
+    source = feed.get("source", "Unknown")
+    lang = feed.get("lang", "en")
 
     try:
         with httpx.Client(
@@ -142,24 +120,12 @@ def fetch_single_feed(feed: Dict) -> List[FeedItem]:
     return items
 
 
-# ---------- AGGREGATOR ----------
+# ---------- BACKWARD COMPATIBILITY ----------
 
-def fetch_all_feeds() -> List[FeedItem]:
-    """Fetch all feeds with deduplication"""
-    all_items: List[FeedItem] = []
-    seen_links = set()
-
-    for feed in FEEDS:
-        items = fetch_single_feed(feed)
-
-        for item in items:
-            if item.link in seen_links:
-                continue
-            seen_links.add(item.link)
-            all_items.append(item)
-
-    # Sort latest first
-    all_items.sort(key=lambda x: x.published, reverse=True)
-
-    logger.info("TOTAL news collected: %d", len(all_items))
-    return all_items
+def fetch_feed(url: str, source: str = "", language: str = "en") -> List[FeedItem]:
+    """Compatibility wrapper for old ingestion code"""
+    return fetch_single_feed({
+        "url": url,
+        "source": source or "Unknown",
+        "lang": language,
+    })

@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 LOOKBACK_DAYS = 3
 MAX_PER_LANG = 500
-MAX_PER_SOURCE = 100   # 🔥 NEW (control load)
+MAX_PER_SOURCE = 100
 
 
 # ---------- INGEST ONE SOURCE ----------
@@ -29,19 +29,18 @@ MAX_PER_SOURCE = 100   # 🔥 NEW (control load)
 def ingest_source(db: Session, source: Source) -> int:
     items = fetch_feed(
         source.url,
-        source=source.name,          # ✅ pass source
-        language=source.language
+        source=source.name,
+        language=source.language,
     )
 
     if not items:
-        logger.warning("⚠️ No items for %s", source.name)
+        logger.warning("No items for %s", source.name)
         return 0
 
-    items = items[:MAX_PER_SOURCE]  # 🔥 LIMIT LOAD
+    items = items[:MAX_PER_SOURCE]
 
     cutoff = datetime.utcnow() - timedelta(days=LOOKBACK_DAYS)
 
-    # 🔥 OPTIMIZED QUERIES
     existing = db.query(
         Article.content_hash, Article.link
     ).filter(
@@ -51,7 +50,6 @@ def ingest_source(db: Session, source: Source) -> int:
     existing_hashes = {e[0] for e in existing}
     existing_links = {e[1] for e in existing}
 
-    # recent titles (cross-source dedup)
     recent_titles = [
         row[0]
         for row in db.query(Article.title)
@@ -67,19 +65,16 @@ def ingest_source(db: Session, source: Source) -> int:
     for item in items:
         ch = content_hash(item.title, item.link)
 
-        # ✅ FAST DEDUP
         if ch in existing_hashes or item.link in existing_links:
             continue
 
-        # ✅ LIMITED fuzzy dedup
         if any(is_duplicate(item.title, t) for t in recent_titles[:100]):
             continue
 
-        # 🔥 SAFE AI CALL (non-blocking failure)
         try:
             ai_sum = generate_summary(item.title, item.summary, source.language)
         except Exception as e:
-            logger.warning("AI summary failed: %s", e)
+            logger.warning("AI failed: %s", e)
             ai_sum = None
 
         article = Article(
@@ -103,12 +98,11 @@ def ingest_source(db: Session, source: Source) -> int:
         recent_titles.append(item.title)
         new_count += 1
 
-    # 🔥 BULK INSERT (BIG PERFORMANCE BOOST)
     if new_articles:
         db.bulk_save_objects(new_articles)
         db.commit()
 
-    logger.info("✅ %s → %d new articles", source.name, new_count)
+    logger.info("%s → %d new articles", source.name, new_count)
     return new_count
 
 
@@ -123,7 +117,7 @@ def ingest_all(db: Session) -> dict:
         try:
             totals[s.name] = ingest_source(db, s)
         except Exception as exc:
-            logger.exception("❌ Ingest failed for %s: %s", s.name, exc)
+            logger.exception("Ingest failed for %s: %s", s.name, exc)
             totals[s.name] = 0
 
     # ---------- CLUSTER + TRENDING ----------
@@ -151,5 +145,5 @@ def ingest_all(db: Session) -> dict:
     cache.delete_prefix("trending:")
     cache.delete_prefix("sources:")
 
-    logger.info("🚀 Ingestion complete: %s", totals)
+    logger.info("Ingestion complete: %s", totals)
     return totals
